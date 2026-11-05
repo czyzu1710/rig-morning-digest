@@ -12,6 +12,19 @@ export function createApp(config: RigConfig = loadConfig()) {
 
   app.get('/health', (c) => c.json({ ok: true, lane: lane().id }));
 
+  app.get('/api/digest/:night', (c) => {
+    try {
+      const { rows } = readNight(config.runsDir, c.req.param('night'));
+      rows.sort((a, b) => a.job.localeCompare(b.job));
+      return c.json({ rows });
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return c.notFound();
+      }
+      throw error;
+    }
+  });
+
   app.get('/', (c) =>
     c.html(
       <Layout title="status" lane={lane()}>
