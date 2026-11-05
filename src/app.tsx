@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { loadConfig, type RigConfig } from './config.js';
+import { readNight } from './digest/reader.js';
 import { lane } from './lane.js';
 import { readStatus } from './status.js';
 import { Layout } from './views/layout.js';
@@ -9,6 +10,19 @@ export function createApp(config: RigConfig = loadConfig()) {
   const app = new Hono();
 
   app.get('/health', (c) => c.json({ ok: true, lane: lane().id }));
+
+  app.get('/api/digest/:night', (c) => {
+    try {
+      const { rows } = readNight(config.runsDir, c.req.param('night'));
+      rows.sort((a, b) => a.job.localeCompare(b.job));
+      return c.json({ rows });
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return c.notFound();
+      }
+      throw error;
+    }
+  });
 
   app.get('/', (c) =>
     c.html(
